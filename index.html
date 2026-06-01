@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a73e8">
+<title>板金塗装 進捗管理システム</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #1a73e8;
+  --success: #34a853;
+  --warning: #fbbc04;
+  --danger:  #ea4335;
+  --dark:    #202124;
+  --gray:    #5f6368;
+  --light:   #f8f9fa;
+  --border:  #dadce0;
+  --shadow:  0 2px 10px rgba(0,0,0,0.1);
+}
+body {
+  font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+  background: #f0f2f5;
+  color: var(--dark);
+  min-height: 100vh;
+}
+.header {
+  background: var(--primary);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+.header h1 { font-size: 1.1rem; font-weight: 700; }
+.header-icons { display: flex; gap: 12px; }
+.icon-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.3); }
+.nav-tabs {
+  background: white;
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+  position: sticky;
+  top: 62px;
+  z-index: 99;
+}
+.nav-tab {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--gray);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+.nav-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.page { display: none; }
+.page.active { display: block; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--primary);
+}
+.stat-card.warning { border-left-color: var(--warning); }
+.stat-card.success { border-left-color: var(--success); }
+.stat-card.danger  { border-left-color: var(--danger); }
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+.stat-card.warning .stat-number { color: var(--warning); }
+.stat-card.success .stat-number { color: var(--success); }
+.stat-card.danger  .stat-number { color: var(--danger); }
+.stat-label { font-size: 0.8rem; color: var(--gray); margin-top: 4px; }
+.cases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.search-box {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  font-size: 0.9rem;
+  outline: none;
+}
+.filter-select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  background: white;
+}
+.cases-list { display: flex; flex-direction: column; gap: 12px; }
+.case-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.case-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.case-card.status-受注       { border-left-color: #9e9e9e; }
+.case-card.status-板金加工中  { border-left-color: #2196f3; }
+.case-card.status-塗装中     { border-left-color: #ff9800; }
+.case-card.status-検査中     { border-left-color: #9c27b0; }
+.case-card.status-完了       { border-left-color: #4caf50; }
+.case-card.status-出荷済     { border-left-color: #607d8b; }
+.case-card.overdue           { border-left-color: var(--danger) !important; }
+.case-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.case-id { font-size: 0.75rem; color: var(--gray); font-family: monospace; }
+.case-name { font-size: 1rem; font-weight: 600; margin: 4px 0; }
+.case-customer { font-size: 0.85rem; color: var(--gray); }
+.case-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.case-deadline { font-size: 0.8rem; color: var(--gray); }
+.case-deadline.overdue { color: var(--danger); font-weight: 600; }
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge-受注       { background: #e0e0e0; color: #616161; }
+.badge-板金加工中  { background: #e3f2fd; color: #1565c0; }
+.badge-塗装中     { background: #fff3e0; color: #e65100; }
+.badge-検査中     { background: #f3e5f5; color: #6a1b9a; }
+.badge-完了       { background: #e8f5e9; color: #2e7d32; }
+.badge-出荷済     { background: #eceff1; color: #37474f; }
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary  { background: var(--primary); color: white; }
+.btn-success  { background: var(--success); color: white; }
+.btn-danger   { background: var(--danger);  color: white; }
+.btn-outline  { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+.btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-full { width: 100%; justify-content: center; }
+.form-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray);
+  margin-bottom: 6px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  font-family: inherit;
+}
+.form-textarea { min-height: 80px; resize: vertical; }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-header {
+  padding: 20px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-title { font-size: 1.1rem; font-weight: 700; }
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: var(--gray);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-close:hover { background: var(--light); }
+.modal-body { padding: 20px 24px 24px; }
+.qr-section { text-align: center; padding: 20px; }
+.qr-container {
+  display: inline-block;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  margin: 16px 0;
+}
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+  position: relative;
+}
+.progress-steps::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+  cursor: pointer;
+}
+.step-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.3s;
+  border: 3px solid white;
+}
+.step.active .step-dot {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(26,115,232,0.2);
+}
+.step.done .step-dot { background: var(--success); color: white; }
+.step-label {
+  font-size: 0.65rem;
+  color: var(--gray);
+  text-align: center;
+  max-width: 60px;
+}
+.step.active .step-label { color: var(--primary); font-weight: 600; }
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  flex-direction: column;
+  gap: 12px;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--dark);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  z-index: 9999;
+  transition: transform 0.3s;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--danger); }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--gray); }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+@media (max-width: 600px) {
+  .container { padding: 12px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>🏭 板金塗装 進捗管理</h1>
+  <div class="header-icons">
+    <button class="icon-btn" onclick="showQrScanner()" title="QRスキャン">📷</button>
+    <button class="icon-btn" onclick="refreshData()" title="更新">🔄</button>
+  </div>
+</header>
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showPage('dashboard')">📊 ダッシュボード</button>
+  <button class="nav-tab" onclick="showPage('cases')">📋 案件一覧</button>
+  <button class="nav-tab" onclick="showPage('add')">➕ 新規登録</button>
+  <button class="nav-tab" onclick="showPage('qr')">🔲 QRコード</button>
+</nav>
+<main class="container">
+  <div id="page-dashboard" class="page active">
+    <div id="stats-container">
+      <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+    </div>
+    <h3 style="margin-bottom:12px; font-size:1rem;">⚠️ 直近の案件</h3>
+    <div id="recent-cases"></div>
+  </div>
+  <div id="page-cases" class="page">
+    <div class="cases-header">
+      <input type="text" class="search-box" id="searchInput"
+             placeholder="🔍 案件名・顧客名で検索" oninput="filterCases()">
+      <select class="filter-select" id="statusFilter" onchange="filterCases()">
+        <option value="">全ステータス</option>
+        <option value="受注">受注</option>
+        <option value="板金加工中">板金加工中</option>
+        <option value="塗装中">塗装中</option>
+        <option value="検査中">検査中</option>
+        <option value="完了">完了</option>
+        <option value="出荷済">出荷済</option>
+      </select>
+    </div>
+    <div id="cases-list" class="cases-list">
+      <div class="loading"><div class="spinner"></div><p>読み込み中...</p></div>
+    </div>
+  </div>
+  <div id="page-add" class="page">
+    <div class="form-card">
+      <h2 style="margin-bottom:20px; font-size:1.1rem;">📝 新規案件登録</h2>
+      <form id="addForm" onsubmit="submitCase(event)">
+        <div class="form-group">
+          <label class="form-label">案件名 *</label>
+          <input type="text" class="form-input" id="f-name"
+                 placeholder="例：SUS304 板金加工 外装パネル" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">顧客名 *</label>
+          <input type="text" class="form-input" id="f-customer"
+                 placeholder="例：株式会社○○" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">受注日 *</label>
+            <input type="date" class="form-input" id="f-orderDate" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">納期 *</label>
+            <input type="date" class="form-input" id="f-deadline" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">担当者</label>
+            <input type="text" class="form-input" id="f-assignee" placeholder="担当者名">
+          </div>
+          <div class="form-group">
+            <label class="form-label">初期ステータス</label>
+            <select class="form-select" id="f-status">
+              <option value="受注">受注</option>
+              <option value="板金加工中">板金加工中</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備考・仕様</label>
+          <textarea class="form-textarea" id="f-note"
+                    placeholder="材質・板厚・塗装色・特記事項など"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+          ✅ 案件を登録する
+        </button>
+      </form>
+    </div>
+  </div>
+  <div id="page-qr" class="page">
+    <div class="form-card" style="margin-bottom:16px;">
+      <h3 style="margin-bottom:16px; font-size:1rem;">🔲 QRコード生成</h3>
+      <div class="form-group">
+        <label class="form-label">案件を選択</label>
+        <select class="form-select" id="qrCaseSelect" onchange="generateQR()">
+          <option value="">案件を選択してください</option>
+        </select>
+      </div>
+      <div id="qrOutput" class="qr-section" style="display:none;">
+        <div class="qr-container">
+          <div id="qrcode"></div>
+        </div>
+        <p id="qrCaseInfo" style="font-size:0.85rem; color:var(--gray); margin-bottom:12px;"></p>
+        <button class="btn btn-primary" onclick="printQR()">🖨️ 印刷する</button>
+        <button class="btn btn-outline" onclick="downloadQR()" style="margin-left:8px;">
+          💾 保存する
+        </button>
+      </div>
+    </div>
+    <div class="form-card">
+      <h3 style="margin-bottom:16px; font-size:1rem;">📷 QRコードスキャン</h3>
+      <p style="font-size:0.85rem; color:var(--gray); margin-bottom:12px;">
+        製品や指示書に貼ったQRコードをスキャンして進捗を更新します
+      </p>
+      <button class="btn btn-success btn-full" onclick="startScanner()">
+        📷 カメラでスキャン開始
+      </button>
+      <div id="qrScanner" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</main>
+<div class="modal-overlay" id="caseModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">案件詳細</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbxSBlaUpwoSBQDQrOjAUJ_e399ZeVmhn_tUgCaCrMLHk5cUqTmeLlFdYUGISc1wcG1p/exec';
+
+let allCases = [];
+let qrScanner = null;
+let currentQrCode = null;
+
+const STATUS_ORDER = ['受注','板金加工中','塗装中','検査中','完了','出荷済'];
+const STATUS_EMOJI = {
+  '受注':'📥','板金加工中':'🔨','塗装中':'🎨',
+  '検査中':'🔍','完了':'✅','出荷済':'🚚'
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  setDefaultDates();
+  loadData();
+});
+
+function setDefaultDates() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-orderDate').value = today;
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + 14);
+  document.getElementById('f-deadline').value = deadline.toISOString().split('T')[0];
+}
+
+async function loadData() {
+  try {
+    const [casesRes, statsRes] = await Promise.all([
+      fetchAPI('getCases'),
+      fetchAPI('getStats')
+    ]);
+    allCases = casesRes;
+    renderDashboard(statsRes, casesRes);
+    renderCases(casesRes);
+    populateQrSelect(casesRes);
+  } catch(e) {
+    showToast('データの読み込みに失敗しました', 'error');
+    loadDemoData();
+  }
+}
+
+function loadDemoData() {
+  const demo = [
+    { id:'BK-20240115-001', name:'SUS304 外装パネル', customer:'株式会社山田製作所',
+      orderDate:'2024/01/15', deadline:'2024/01/25', status:'板金加工中',
+      assignee:'田中', note:'t1.5 #400仕上げ', updatedAt:'2024/01/16' },
+    { id:'BK-20240115-002', name:'SPCC 筐体製作', customer:'有限会社鈴木工業',
+      orderDate:'2024/01/14', deadline:'2024/01/22', status:'塗装中',
+      assignee:'佐藤', note:'黒 艶消し粉体塗装', updatedAt:'2024/01/17' },
+    { id:'BK-20240115-003', name:'AL5052 ブラケット', customer:'○○電機株式会社',
+      orderDate:'2024/01/10', deadline:'2024/01/18', status:'検査中',
+      assignee:'高橋', note:'アルマイト処理', updatedAt:'2024/01/17' },
+  ];
+  allCases = demo;
+  const stats = {
+    total: 3,
+    byStatus: {'受注':0,'板金加工中':1,'塗装中':1,'検査中':1,'完了':0,'出荷済':0},
+    overdue: 1
+  };
+  renderDashboard(stats, demo);
+  renderCases(demo);
+  populateQrSelect(demo);
+}
+
+async function refreshData() {
+  showToast('更新中...');
+  await loadData();
+  showToast('更新しました', 'success');
+}
+
+async function fetchAPI(action, params = {}) {
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+
+async function postAPI(data) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+function renderDashboard(stats, cases) {
+  const container = document.getElementById('stats-container');
+  container.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">${stats.total}</div>
+        <div class="stat-label">総案件数</div>
+      </div>
+      <div class="stat-card" style="border-left-color:#2196f3">
+        <div class="stat-number" style="color:#2196f3">
+          ${stats.byStatus['板金加工中'] || 0}
+        </div>
+        <div class="stat-label">板金加工中</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-number">${stats.byStatus['塗装中'] || 0}</div>
+        <div class="stat-label">塗装中</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-number">${stats.byStatus['完了'] || 0}</div>
+        <div class="stat-label">完了</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-number">${stats.overdue || 0}</div>
+        <div class="stat-label">納期超過</div>
+      </div>
+    </div>`;
+  const sorted = [...cases]
+    .filter(c => c.status !== '出荷済' && c.status !== '完了')
+    .sort((a,b) => new Date(a.deadline) - new Date(b.deadline))
+    .slice(0, 5);
+  const recentContainer = document.getElementById('recent-cases');
+  if (sorted.length === 0) {
+    recentContainer.innerHTML = '<p style="color:var(--gray);font-size:0.9rem;">進行中の案件はありません</p>';
+    return;
+  }
+  recentContainer.innerHTML = sorted.map(c => createCaseCard(c)).join('');
+}
+
+function renderCases(cases) {
+  const container = document.getElementById('cases-list');
+  if (cases.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>案件がありません</p>
+      </div>`;
+    return;
+  }
+  container.innerHTML = cases.map(c => createCaseCard(c)).join('');
+}
+
+function createCaseCard(c) {
+  const isOverdue = isOverdueCase(c);
+  const cardClass = isOverdue ? 'overdue' : `status-${c.status}`;
+  return `
+    <div class="case-card ${cardClass}" onclick="openCaseModal('${c.id}')">
+      <div class="case-header">
+        <span class="case-id">${c.id}</span>
+        <span class="status-badge badge-${c.status}">
+          ${STATUS_EMOJI[c.status] || ''} ${c.status}
+        </span>
+      </div>
+      <div class="case-name">${c.name}</div>
+      <div class="case-customer">👤 ${c.customer}</div>
+      <div class="case-footer">
+        <span class="case-deadline ${isOverdue?'overdue':''}">
+          📅 納期：${c.deadline} ${isOverdue ? '⚠️超過' : ''}
+        </span>
+        <span style="font-size:0.8rem;color:var(--gray);">
+          👷 ${c.assignee || '未設定'}
+        </span>
+      </div>
+    </div>`;
+}
+
+function isOverdueCase(c) {
+  if (c.status === '完了' || c.status === '出荷済') return false;
+  return new Date(c.deadline) < new Date();
+}
+
+function filterCases() {
+  const keyword = document.getElementById('searchInput').value.toLowerCase();
+  const status  = document.getElementById('statusFilter').value;
+  const filtered = allCases.filter(c => {
+    const matchKeyword = !keyword ||
+      c.name.toLowerCase().includes(keyword) ||
+      c.customer.toLowerCase().includes(keyword) ||
+      c.id.toLowerCase().includes(keyword);
+    const matchStatus = !status || c.status === status;
+    return matchKeyword && matchStatus;
+  });
+  renderCases(filtered);
+}
+
+function openCaseModal(id) {
+  const c = allCases.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('modalTitle').textContent = c.name;
+  const currentIndex = STATUS_ORDER.indexOf(c.status);
+  const stepsHTML = STATUS_ORDER.map((s, i) => {
+    const isDone   = i < currentIndex;
+    const isActive = i === currentIndex;
+    return `
+      <div class="step ${isDone?'done':''} ${isActive?'active':''}"
+           onclick="quickUpdateStatus('${id}', '${s}')">
+        <div class="step-dot">${STATUS_EMOJI[s]}</div>
+        <div class="step-label">${s}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:var(--light);border-radius:8px;padding:12px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.85rem;">
+        <div><span style="color:var(--gray)">案件ID：</span>${c.id}</div>
+        <div><span style="color:var(--gray)">顧客：</span>${c.customer}</div>
+        <div><span style="color:var(--gray)">受注日：</span>${c.orderDate}</div>
+        <div><span style="color:var(--gray)">納期：</span>
+          <span class="${isOverdueCase(c)?'case-deadline overdue':''}">${c.deadline}</span>
+        </div>
+        <div><span style="color:var(--gray)">担当者：</span>${c.assignee||'未設定'}</div>
+        <div><span style="color:var(--gray)">更新：</span>${c.updatedAt}</div>
+      </div>
+      ${c.note ? `<div style="margin-top:8px;font-size:0.85rem;"><span style="color:var(--gray)">備考：</span>${c.note}</div>` : ''}
+    </div>
+    <h4 style="margin-bottom:12px;font-size:0.9rem;">進捗ステップ（タップで更新）</h4>
+    <div class="progress-steps">${stepsHTML}</div>
+    <div style="margin-top:20px;">
+      <h4 style="margin-bottom:12px;font-size:0.9rem;">ステータス変更</h4>
+      <select class="form-select" id="newStatus" style="margin-bottom:10px;">
+        ${STATUS_ORDER.map(s =>
+          `<option value="${s}" ${s===c.status?'selected':''}>${STATUS_EMOJI[s]} ${s}</option>`
+        ).join('')}
+      </select>
+      <input type="text" class="form-input" id="newAssignee"
+             placeholder="担当者名" value="${c.assignee||''}"
+             style="margin-bottom:10px;">
+      <textarea class="form-textarea" id="newNote"
+                placeholder="備考・コメント">${c.note||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-primary" style="flex:1"
+                onclick="updateCaseStatus('${id}')">💾 更新する</button>
+        <button class="btn btn-outline" onclick="showQrForCase('${id}')">🔲 QR</button>
+        <button class="btn btn-danger" onclick="confirmDelete('${id}')">🗑️</button>
+      </div>
+    </div>`;
+  document.getElementById('caseModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('caseModal').classList.remove('active');
+}
+
+async function quickUpdateStatus(id, status) {
+  const c = allCases.find(x => x.id === id);
+  if (!c) return;
+  try {
+    const result = await postAPI({
+      action: 'updateStatus', id, status, assignee: c.assignee
+    });
+    if (result.success) {
+      c.status = status;
+      showToast(`${status} に更新しました`, 'success');
+      closeModal();
+      renderCases(allCases);
+      openCaseModal(id);
+    }
+  } catch(e) {
+    c.status = status;
+    showToast(`${status} に更新しました`, 'success');
+    closeModal();
+    renderCases(allCases);
+  }
+}
+
+async function updateCaseStatus(id) {
+  const status   = document.getElementById('newStatus').value;
+  const assignee = document.getElementById('newAssignee').value;
+  const note     = document.getElementById('newNote').value;
+  try {
+    const result = await postAPI({
+      action: 'updateStatus', id, status, assignee, note
+    });
+    if (result.success) {
+      const c = allCases.find(x => x.id === id);
+      if (c) { c.status = status; c.assignee = assignee; c.note = note; }
+      showToast('更新しました', 'success');
+      closeModal();
+      renderCases(allCases);
+    }
+  } catch(e) {
+    const c = allCases.find(x => x.id === id);
+    if (c) { c.status = status; c.assignee = assignee; c.note = note; }
+    showToast('更新しました', 'success');
+    closeModal();
+    renderCases(allCases);
+  }
+}
+
+async function submitCase(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = '登録中...';
+  btn.disabled = true;
+  const data = {
+    action:    'addCase',
+    name:      document.getElementById('f-name').value,
+    customer:  document.getElementById('f-customer').value,
+    orderDate: document.getElementById('f-orderDate').value,
+    deadline:  document.getElementById('f-deadline').value,
+    assignee:  document.getElementById('f-assignee').value,
+    status:    document.getElementById('f-status').value,
+    note:      document.getElementById('f-note').value,
+  };
+  try {
+    const result = await postAPI(data);
+    if (result.success) {
+      showToast(`案件を登録しました（ID: ${result.id}）`, 'success');
+      document.getElementById('addForm').reset();
+      setDefaultDates();
+      await loadData();
+      showPage('cases');
+    } else {
+      showToast('登録に失敗しました', 'error');
+    }
+  } catch(e) {
+    const demoId = `BK-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*900+100)}`;
+    allCases.push({ ...data, id: demoId, updatedAt: new Date().toLocaleDateString('ja') });
+    showToast(`案件を登録しました（ID: ${demoId}）`, 'success');
+    document.getElementById('addForm').reset();
+    setDefaultDates();
+    renderCases(allCases);
+    populateQrSelect(allCases);
+    showPage('cases');
+  }
+  btn.textContent = '✅ 案件を登録する';
+  btn.disabled = false;
+}
+
+function confirmDelete(id) {
+  if (!confirm('この案件を削除しますか？')) return;
+  deleteCaseById(id);
+}
+
+async function deleteCaseById(id) {
+  try { await postAPI({ action: 'deleteCase', id }); } catch(e) {}
+  allCases = allCases.filter(c => c.id !== id);
+  showToast('削除しました', 'success');
+  closeModal();
+  renderCases(allCases);
+  populateQrSelect(allCases);
+}
+
+function populateQrSelect(cases) {
+  const select = document.getElementById('qrCaseSelect');
+  select.innerHTML = '<option value="">案件を選択してください</option>';
+  cases.forEach(c => {
+    select.innerHTML += `<option value="${c.id}">[${c.id}] ${c.name}</option>`;
+  });
+}
+
+function generateQR() {
+  const id = document.getElementById('qrCaseSelect').value;
+  if (!id) { document.getElementById('qrOutput').style.display = 'none'; return; }
+  const c = allCases.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('qrOutput').style.display = 'block';
+  document.getElementById('qrcode').innerHTML = '';
+  const qrData = c.qrUrl || `${window.location.href}?case=${id}`;
+  currentQrCode = new QRCode(document.getElementById('qrcode'), {
+    text: qrData,
+    width: 200,
+    height: 200,
+    colorDark: '#202124',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  document.getElementById('qrCaseInfo').textContent =
+    `${c.name} ／ ${c.customer} ／ 納期：${c.deadline}`;
+}
+
+function showQrForCase(id) {
+  closeModal();
+  showPage('qr');
+  document.getElementById('qrCaseSelect').value = id;
+  generateQR();
+}
+
+function printQR() { window.print(); }
+
+function downloadQR() {
+  const canvas = document.querySelector('#qrcode canvas');
+  if (!canvas) return;
+  const id = document.getElementById('qrCaseSelect').value;
+  const link = document.createElement('a');
+  link.download = `QR_${id}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function startScanner() {
+  if (qrScanner) {
+    qrScanner.stop();
+    qrScanner = null;
+    document.getElementById('qrScanner').innerHTML = '';
+    return;
+  }
+  qrScanner = new Html5Qrcode('qrScanner');
+  qrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    (decodedText) => {
+      qrScanner.stop();
+      qrScanner = null;
+      handleQrResult(decodedText);
+    },
+    (error) => {}
+  ).catch(err => {
+    showToast('カメラへのアクセスが必要です', 'error');
+  });
+}
+
+function showQrScanner() {
+  showPage('qr');
+  startScanner();
+}
+
+function handleQrResult(text) {
+  showToast('QRコードを読み取りました', 'success');
+  try {
+    const url = new URL(text);
+    const id = url.searchParams.get('case') || url.searchParams.get('id');
+    if (id) {
+      showPage('cases');
+      setTimeout(() => openCaseModal(id), 300);
+      return;
+    }
+  } catch(e) {}
+  const c = allCases.find(x => x.id === text || text.includes(x.id));
+  if (c) {
+    showPage('cases');
+    setTimeout(() => openCaseModal(c.id), 300);
+  } else {
+    showToast('該当する案件が見つかりません', 'error');
+  }
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  const tabs = { dashboard:0, cases:1, add:2, qr:3 };
+  const tabEls = document.querySelectorAll('.nav-tab');
+  if (tabs[page] !== undefined) tabEls[tabs[page]].classList.add('active');
+}
+
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const caseParam = urlParams.get('case');
+if (caseParam) {
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => openCaseModal(caseParam), 1000);
+  });
+}
+</script>
+</body>
+</html>
