@@ -963,11 +963,24 @@ function showToast(msg, type = '') {
 
 const urlParams = new URLSearchParams(window.location.search);
 const caseParam = urlParams.get('case');
-if (caseParam) {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => openCaseModal(caseParam), 1000);
+
+document.addEventListener('DOMContentLoaded', () => {
+  setDefaultDates();
+  loadData().then(() => {
+    if (caseParam) {
+      // QRコードから直接アクセスした場合
+      showPage('cases');
+      setTimeout(() => {
+        const targetCase = allCases.find(c => c.id === caseParam);
+        if (targetCase) {
+          openCaseModal(caseParam);
+        } else {
+          showToast('案件が見つかりません', 'error');
+        }
+      }, 1500);
+    }
   });
-}
+});
 </script>
 </body>
 </html>
