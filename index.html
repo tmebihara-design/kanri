@@ -552,8 +552,9 @@ async function loadData() {
     showToast('データの読み込みに失敗しました', 'error');
     loadDemoData();
   }
+  return true;
 }
-
+  
 function loadDemoData() {
   const demo = [
     { id:'BK-20240115-001', name:'SUS304 外装パネル', customer:'株式会社山田製作所',
