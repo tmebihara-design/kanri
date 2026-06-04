@@ -525,11 +525,6 @@ const STATUS_EMOJI = {
   '検査中':'🔍','完了':'✅','出荷済':'🚚'
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  setDefaultDates();
-  loadData();
-});
-
 function setDefaultDates() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-orderDate').value = today;
