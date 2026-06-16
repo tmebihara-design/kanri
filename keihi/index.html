@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>経費精算システム</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5;
+    color: #333;
+  }
+
+  /* ヘッダー */
+  .header {
+    background: #1a73e8;
+    color: white;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .header h1 { font-size: 18px; }
+  .header-sub { font-size: 12px; opacity: 0.8; }
+
+  /* ナビゲーション */
+  .nav {
+    display: flex;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    overflow-x: auto;
+  }
+  .nav-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 12px 8px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .nav-btn.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    font-weight: bold;
+  }
+
+  /* ページ */
+  .page { display: none; padding: 16px; max-width: 800px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* カード */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 12px;
+    color: #1a73e8;
+    border-bottom: 1px solid #e8f0fe;
+    padding-bottom: 8px;
+  }
+
+  /* フォーム */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+  }
+  select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+
+  /* 税率ボタン */
+  .tax-buttons { display: flex; gap: 8px; }
+  .tax-btn {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: bold;
+  }
+  .tax-btn.active {
+    border-color: #1a73e8;
+    background: #e8f0fe;
+    color: #1a73e8;
+  }
+
+  /* 金額表示 */
+  .price-display {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 4px 0;
+  }
+  .price-row.total {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1a73e8;
+    border-top: 1px solid #ddd;
+    margin-top: 4px;
+    padding-top: 8px;
+  }
+
+  /* ボタン */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-primary:hover { background: #1557b0; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-secondary { background: #f1f3f4; color: #333; }
+  .btn-danger { background: #ea4335; color: white; }
+  .btn-success { background: #34a853; color: white; }
+
+  /* クイック登録ボタン */
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .quick-btn {
+    padding: 12px 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    line-height: 1.4;
+  }
+  .quick-btn:active { background: #e8f0fe; border-color: #1a73e8; }
+  .quick-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+  /* カメラ */
+  .camera-area {
+    border: 2px dashed #1a73e8;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    background: #f8f9fa;
+    transition: all 0.2s;
+  }
+  .camera-area:active { background: #e8f0fe; }
+  .camera-icon { font-size: 48px; display: block; margin-bottom: 8px; }
+  .camera-text { color: #666; font-size: 14px; }
+  #preview-image {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 12px;
+    display: none;
+  }
+  .ocr-status {
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: none;
+    font-size: 14px;
+  }
+  .ocr-status.loading { background: #fff3cd; color: #856404; }
+  .ocr-status.success { background: #d4edda; color: #155724; }
+  .ocr-status.error { background: #f8d7da; color: #721c24; }
+
+  /* 経費リスト */
+  .expense-item {
+    border-left: 4px solid #1a73e8;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .expense-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+  .expense-store { font-weight: bold; font-size: 15px; }
+  .expense-total { font-size: 18px; font-weight: bold; color: #1a73e8; }
+  .expense-detail { font-size: 12px; color: #888; }
+  .expense-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .btn-sm {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* 月フィルター */
+  .month-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .month-filter input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+
+  /* 集計 */
+  .summary-total {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #1a73e8, #0d47a1);
+    color: white;
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .summary-total-label { font-size: 14px; opacity: 0.9; }
+  .summary-total-amount { font-size: 36px; font-weight: bold; margin: 8px 0; }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-category { color: #555; }
+  .summary-amount { font-weight: bold; }
+
+  /* ローディング */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-box {
+    background: white;
+    padding: 24px 32px;
+    border-radius: 12px;
+    text-align: center;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #1a73e8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* トースト通知 */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* レスポンシブ */
+  @media (min-width: 600px) {
+    .quick-grid { grid-template-columns: repeat(4, 1fr); }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ローディング -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loading-text">処理中...</div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="toast"></div>
+
+<!-- ヘッダー -->
+<div class="header">
+  <div>
+    <h1>💰 経費精算</h1>
+    <div class="header-sub" id="header-month"></div>
+  </div>
+  <div style="font-size:24px" id="header-total"></div>
+</div>
+
+<!-- ナビゲーション -->
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('register')">📝 登録</button>
+  <button class="nav-btn" onclick="showPage('list')">📋 一覧</button>
+  <button class="nav-btn" onclick="showPage('report')">📊 集計</button>
+  <button class="nav-btn" onclick="showPage('settings')">⚙️ 設定</button>
+</div>
+
+<!-- ========== 登録ページ ========== -->
+<div class="page active" id="page-register">
+
+  <!-- OCR撮影 -->
+  <div class="card">
+    <div class="card-title">📸 レシートを撮影（自動読み取り）</div>
+    <div class="camera-area" onclick="document.getElementById('camera-input').click()">
+      <span class="camera-icon">📷</span>
+      <div class="camera-text">タップして撮影 または 画像を選択</div>
+    </div>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleImage(this)">
+    <img id="preview-image" alt="プレビュー">
+    <div class="ocr-status" id="ocr-status"></div>
+  </div>
+
+  <!-- クイック登録 -->
+  <div class="card">
+    <div class="card-title">⚡ よく使う経費（ワンタップ）</div>
+    <div class="quick-grid" id="quick-buttons">
+      <div style="text-align:center;color:#999;font-size:13px;grid-column:1/-1;padding:12px">
+        読み込み中...
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <div class="card-title">✏️ 手動入力</div>
+
+    <div class="form-group">
+      <label class="form-label">日付</label>
+      <input type="date" class="form-input" id="input-date">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">店名・支払先</label>
+      <input type="text" class="form-input" id="input-store" placeholder="例：コメリ、出光SS">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">金額（税抜）</label>
+      <input type="number" class="form-input" id="input-price" placeholder="0" oninput="calcTax()">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">消費税率</label>
+      <div class="tax-buttons">
+        <button class="tax-btn active" onclick="setTax(10)" id="tax-10">10%</button>
+        <button class="tax-btn" onclick="setTax(8)" id="tax-8">8%（軽減）</button>
+        <button class="tax-btn" onclick="setTax(0)" id="tax-0">非課税</button>
+      </div>
+    </div>
+
+    <!-- 税額表示 -->
+    <div class="price-display" id="price-display">
+      <div class="price-row">
+        <span>税抜金額</span>
+        <span id="disp-price">¥0</span>
+      </div>
+      <div class="price-row">
+        <span>消費税</span>
+        <span id="disp-tax">¥0</span>
+      </div>
+      <div class="price-row total">
+        <span>合計（税込）</span>
+        <span id="disp-total">¥0</span>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:14px">
+      <label class="form-label">カテゴリ</label>
+      <select class="form-input" id="input-category">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">備考（任意）</label>
+      <input type="text" class="form-input" id="input-memo" placeholder="例：現場用、〇〇さんと">
+    </div>
+
+    <button class="btn btn-primary" onclick="submitExpense()">💾 登録する</button>
+  </div>
+</div>
+
+<!-- ========== 一覧ページ ========== -->
+<div class="page" id="page-list">
+  <div class="card">
+    <div class="month-filter">
+      <input type="month" id="filter-month">
+      <button class="btn btn-secondary" style="width:auto;padding:8px 16px" onclick="loadExpenses()">表示</button>
+    </div>
+    <div id="expense-list">
+      <div style="text-align:center;color:#999;padding:24px">データを読み込み中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 集計ページ ========== -->
+<div class="page" id="page-report">
+  <div class="card">
+    <div class="month-filter">
+      <input type="month" id="report-month">
+      <button class="btn btn-secondary" style="width:auto;padding:8px 16px" onclick="loadReport()">表示</button>
+    </div>
+  </div>
+  <div id="report-content">
+    <div style="text-align:center;color:#999;padding:24px">月を選択してください</div>
+  </div>
+</div>
+
+<!-- ========== 設定ページ ========== -->
+<div class="page" id="page-settings">
+  <div class="card">
+    <div class="card-title">⚙️ システム設定</div>
+    <div class="form-group">
+      <label class="form-label">Google Apps Script URL</label>
+      <input type="text" class="form-input" id="setting-gas-url" placeholder="https://script.google.com/...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vision API キー</label>
+      <input type="password" class="form-input" id="setting-api-key" placeholder="AIza...">
+    </div>
+    <button class="btn btn-primary" onclick="saveSettings()">💾 設定を保存</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 カテゴリ管理</div>
+    <p style="font-size:13px;color:#666;margin-bottom:12px">
+      カテゴリの追加・変更はGoogleスプレッドシートの<br>
+      「カテゴリマスタ」シートを編集してください
+    </p>
+    <button class="btn btn-secondary" onclick="loadCategories()">🔄 カテゴリを再読み込み</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔗 リンク</div>
+    <button class="btn btn-secondary" style="margin-bottom:8px" onclick="window.open('https://tmebihara-design.github.io/kanri/')">
+      📊 進捗管理システムへ
+    </button>
+  </div>
+</div>
+
+<script>
+// ===================================
+// 設定
+// ===================================
+let GAS_URL = localStorage.getItem('gasUrl') || '';
+let API_KEY = localStorage.getItem('apiKey') || '';
+let currentTaxRate = 10;
+let categories = [];
+
+// ===================================
+// 初期化
+// ===================================
+window.onload = function() {
+  // 今日の日付をセット
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('input-date').value = today;
+
+  // 今月をセット
+  const thisMonth = today.substring(0, 7);
+  document.getElementById('filter-month').value = thisMonth;
+  document.getElementById('report-month').value = thisMonth;
+
+  // ヘッダーに月表示
+  const monthLabel = new Date().toLocaleDateString('ja-JP', {year:'numeric', month:'long'});
+  document.getElementById('header-month').textContent = monthLabel;
+
+  // 設定を読み込み
+  document.getElementById('setting-gas-url').value = GAS_URL;
+  document.getElementById('setting-api-key').value = API_KEY;
+
+  // カテゴリ読み込み
+  if (GAS_URL) {
+    loadCategories();
+    loadMonthTotal();
+  } else {
+    showToast('⚙️ 設定タブでURLとAPIキーを入力してください');
+  }
+};
+
+// ===================================
+// ページ切り替え
+// ===================================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.target.classList.add('active');
+
+  if (page === 'list') loadExpenses();
+  if (page === 'report') loadReport();
+}
+
+// ===================================
+// 設定保存
+// ===================================
+function saveSettings() {
+  GAS_URL = document.getElementById('setting-gas-url').value.trim();
+  API_KEY = document.getElementById('setting-api-key').value.trim();
+  localStorage.setItem('gasUrl', GAS_URL);
+  localStorage.setItem('apiKey', API_KEY);
+  showToast('✅ 設定を保存しました');
+  loadCategories();
+}
+
+// ===================================
+// GAS APIを呼び出す
+// ===================================
+async function callAPI(action, payload = {}) {
+  if (!GAS_URL) {
+    showToast('⚙️ 設定タブでURLを入力してください');
+    return null;
+  }
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, payload })
+    });
+    return await res.json();
+  } catch(e) {
+    showToast('❌ 通信エラー: ' + e.message);
+    return null;
+  }
+}
+
+// ===================================
+// カテゴリ読み込み
+// ===================================
+async function loadCategories() {
+  const result = await callAPI('getCategories');
+  if (!result || !result.success) return;
+
+  categories = result.data;
+
+  // セレクトボックスを更新
+  const select = document.getElementById('input-category');
+  select.innerHTML = '<option value="">選択してください</option>';
+  categories.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    select.appendChild(opt);
+  });
+
+  // クイックボタンを更新
+  updateQuickButtons();
+}
+
+// ===================================
+// クイックボタン更新
+// ===================================
+const QUICK_ICONS = {
+  'ガソリン代': '⛽',
+  '工具・消耗品': '🔧',
+  '材料費': '🔩',
+  '塗料': '🎨',
+  '外食・昼食': '🍱',
+  '駐車場': '🅿️',
+  '宅配・運送費': '📦',
+  'その他': '📝'
+};
+
+function updateQuickButtons() {
+  const grid = document.getElementById('quick-buttons');
+  grid.innerHTML = '';
+  categories.forEach(cat => {
+    const icon = QUICK_ICONS[cat] || '💴';
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn';
+    btn.innerHTML = `<span class="icon">${icon}</span>${cat}`;
+    btn.onclick = () => quickSelect(cat);
+    grid.appendChild(btn);
+  });
+}
+
+function quickSelect(category) {
+  document.getElementById('input-category').value = category;
+  document.getElementById('input-store').focus();
+  showToast('📌 ' + category + ' を選択');
+}
+
+// ===================================
+// 税率設定
+// ===================================
+function setTax(rate) {
+  currentTaxRate = rate;
+  document.getElementById('tax-10').classList.remove('active');
+  document.getElementById('tax-8').classList.remove('active');
+  document.getElementById('tax-0').classList.remove('active');
+  document.getElementById('tax-' + rate).classList.add('active');
+  calcTax();
+}
+
+function calcTax() {
+  const price = parseFloat(document.getElementById('input-price').value) || 0;
+  const tax = Math.floor(price * currentTaxRate / 100);
+  const total = price + tax;
+  document.getElementById('disp-price').textContent = '¥' + price.toLocaleString();
+  document.getElementById('disp-tax').textContent = '¥' + tax.toLocaleString() + '（' + currentTaxRate + '%）';
+  document.getElementById('disp-total').textContent = '¥' + total.toLocaleString();
+}
+
+// ===================================
+// 経費登録
+// ===================================
+async function submitExpense() {
+  const date = document.getElementById('input-date').value;
+  const store = document.getElementById('input-store').value.trim();
+  const price = document.getElementById('input-price').value;
+  const category = document.getElementById('input-category').value;
+  const memo = document.getElementById('input-memo').value.trim();
+
+  if (!date || !store || !price || !category) {
+    showToast('❌ 日付・店名・金額・カテゴリは必須です');
+    return;
+  }
+
+  showLoading('登録中...');
+
+  const result = await callAPI('addExpense', {
+    date, storeName: store,
+    price, taxRate: currentTaxRate,
+    category, memo
+  });
+
+  hideLoading();
+
+  if (result && result.success) {
+    showToast('✅ 登録しました！');
+    resetForm();
+    loadMonthTotal();
+  } else {
+    showToast('❌ 登録に失敗しました');
+  }
+}
+
+function resetForm() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('input-date').value = today;
+  document.getElementById('input-store').value = '';
+  document.getElementById('input-price').value = '';
+  document.getElementById('input-memo').value = '';
+  document.getElementById('input-category').value = '';
+  setTax(10);
+  document.getElementById('preview-image').style.display = 'none';
+  document.getElementById('ocr-status').style.display = 'none';
+  calcTax();
+}
+
+// ===================================
+// OCR処理
+// ===================================
+function handleImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // プレビュー表示
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = document.getElementById('preview-image');
+    img.src = e.target.result;
+    img.style.display = 'block';
+
+    if (API_KEY) {
+      runOCR(e.target.result);
+    } else {
+      showOCRStatus('error', '⚙️ APIキーが設定されていません。設定タブで入力してください。');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runOCR(dataUrl) {
+  showOCRStatus('loading', '🔍 レシートを読み取り中...');
+
+  // Base64データを抽出
+  const base64 = dataUrl.split(',')[1];
+
+  try {
+    const res = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64 },
+            features: [{ type: 'TEXT_DETECTION', maxResults: 1 }]
+          }]
+        })
+      }
+    );
+
+    const data = await res.json();
+    const text = data.responses[0]?.fullTextAnnotation?.text || '';
+
+    if (!text) {
+      showOCRStatus('error', '❌ テキストを読み取れませんでした');
+      return;
+    }
+
+    parseReceipt(text);
+
+  } catch(e) {
+    showOCRStatus('error', '❌ OCRエラー: ' + e.message);
+  }
+}
+
+function parseReceipt(text) {
+  const lines = text.split('\n');
+  let foundPrice = false;
+  let foundDate = false;
+
+  // 金額を探す（合計・小計・税込など）
+  const totalPatterns = [/合計[^\d]*(\d[\d,]+)/, /小計[^\d]*(\d[\d,]+)/, /税込[^\d]*(\d[\d,]+)/, /TOTAL[^\d]*(\d[\d,]+)/i, /お支払[^\d]*(\d[\d,]+)/];
+  for (const pattern of totalPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const price = parseInt(match[1].replace(/,/g, ''));
+      // 税込金額から税抜を逆算（10%の場合）
+      const priceExTax = Math.round(price / 1.1);
+      document.getElementById('input-price').value = priceExTax;
+      calcTax();
+      foundPrice = true;
+      break;
+    }
+  }
+
+  // 金額が見つからない場合は最大の数字を探す
+  if (!foundPrice) {
+    const numbers = text.match(/\d[\d,]+/g) || [];
+    const amounts = numbers.map(n => parseInt(n.replace(/,/g, ''))).filter(n => n > 100 && n < 1000000);
+    if (amounts.length > 0) {
+      const maxAmount = Math.max(...amounts);
+      document.getElementById('input-price').value = maxAmount;
+      calcTax();
+    }
+  }
+
+  // 日付を探す
+  const datePatterns = [
+    /(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/,
+    /(\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/,
+    /R(\d+)[年\/](\d{1,2})[月\/](\d{1,2})/
+  ];
+  for (const pattern of datePatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      let year = match[1];
+      if (year.length === 2) year = '20' + year;
+      if (year.startsWith('R') || parseInt(year) < 100) {
+        year = String(2018 + parseInt(year));
+      }
+      const month = match[2].padStart(2, '0');
+      const day = match[3].padStart(2, '0');
+      document.getElementById('input-date').value = `${year}-${month}-${day}`;
+      foundDate = true;
+      break;
+    }
+  }
+
+  // 店名（最初の行を使用）
+  const firstLine = lines[0]?.trim();
+  if (firstLine && firstLine.length > 1 && firstLine.length < 30) {
+    document.getElementById('input-store').value = firstLine;
+  }
+
+  const msg = `✅ 読み取り完了！${foundPrice ? '金額' : ''}${foundPrice && foundDate ? '・' : ''}${foundDate ? '日付' : ''}を自動入力しました。内容を確認してください。`;
+  showOCRStatus('success', msg);
+}
+
+function showOCRStatus(type, msg) {
+  const el = document.getElementById('ocr-status');
+  el.className = 'ocr-status ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ===================================
+// 経費一覧
+// ===================================
+async function loadExpenses() {
+  const yearMonth = document.getElementById('filter-month').value.replace('-', '/');
+  showLoading('読み込み中...');
+
+  const result = await callAPI('getExpenses', { yearMonth });
+  hideLoading();
+
+  const container = document.getElementById('expense-list');
+
+  if (!result || !result.success || result.data.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:24px">この月の経費はありません</div>';
+    return;
+  }
+
+  container.innerHTML = result.data.map(e => `
+    <div class="expense-item" id="item-${e.id}">
+      <div class="expense-header">
+        <div>
+          <div class="expense-store">${e.storeName}</div>
+          <div class="expense-detail">${e.date} ／ ${e.category} ／ 消費税${e.taxRate}</div>
+          ${e.memo ? `<div class="expense-detail">📝 ${e.memo}</div>` : ''}
+        </div>
+        <div class="expense-total">¥${Number(e.total).toLocaleString()}</div>
+      </div>
+      <div class="expense-actions">
+        <button class="btn-sm btn-secondary" onclick="editExpense('${e.id}')">✏️ 編集</button>
+        <button class="btn-sm btn-danger" style="color:white;background:#ea4335" onclick="deleteExpense('${e.id}')">🗑️ 削除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteExpense(id) {
+  if (!confirm('この経費を削除しますか？')) return;
+  showLoading('削除中...');
+  const result = await callAPI('deleteExpense', { id });
+  hideLoading();
+  if (result && result.success) {
+    showToast('🗑️ 削除しました');
+    loadExpenses();
+    loadMonthTotal();
+  }
+}
+
+function editExpense(id) {
+  showToast('編集機能は次のバージョンで追加予定です');
+}
+
+// ===================================
+// 月次集計
+// ===================================
+async function loadReport() {
+  const yearMonth = document.getElementById('report-month').value.replace('-', '/');
+  if (!yearMonth) return;
+
+  showLoading('集計中...');
+  const result = await callAPI('getMonthlySummary', { yearMonth });
+  hideLoading();
+
+  const container = document.getElementById('report-content');
+
+  if (!result || !result.success || result.data.length === 0) {
+    container.innerHTML = '<div class="card" style="text-align:center;color:#999;padding:24px">この月のデータはありません</div>';
+    return;
+  }
+
+  const total = result.data.reduce((sum, r) => sum + Number(r.total), 0);
+  const totalCount = result.data.reduce((sum, r) => sum + Number(r.count), 0);
+
+  const monthLabel = yearMonth.replace('/', '年') + '月';
+
+  container.innerHTML = `
+    <div class="summary-total">
+      <div class="summary-total-label">${monthLabel}の経費合計</div>
+      <div class="summary-total-amount">¥${total.toLocaleString()}</div>
+      <div class="summary-total-label">全${totalCount}件</div>
+    </div>
+    <div class="card">
+      <div class="card-title">カテゴリ別内訳</div>
+      ${result.data.map(r => `
+        <div class="summary-row">
+          <span class="summary-category">${QUICK_ICONS[r.category] || '💴'} ${r.category}（${r.count}件）</span>
+          <span class="summary-amount">¥${Number(r.total).toLocaleString()}</span>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-secondary" onclick="window.print()">🖨️ 印刷・PDF出力</button>
+  `;
+}
+
+async function loadMonthTotal() {
+  const thisMonth = new Date().toISOString().substring(0, 7).replace('-', '/');
+  const result = await callAPI('getMonthlySummary', { yearMonth: thisMonth });
+  if (result && result.success) {
+    const total = result.data.reduce((sum, r) => sum + Number(r.total), 0);
+    document.getElementById('header-total').textContent = total > 0 ? '¥' + total.toLocaleString() : '';
+  }
+}
+
+// ===================================
+// ユーティリティ
+// ===================================
+function showLoading(text = '処理中...') {
+  document.getElementById('loading-text').textContent = text;
+  document.getElementById('loading').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
